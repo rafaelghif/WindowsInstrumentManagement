@@ -90,6 +90,58 @@ Public Class WindowsInstrumentManagementForm
         Dim key As String
         Dim informations As ManagementObjectSearcher
 
+        'Processor
+
+        Dim processorCaption As String = Nothing
+        Dim processorManufacturer As String = Nothing
+        Dim processorMaxClockSpeed As String = Nothing
+        Dim processorName As String = Nothing
+        Dim processorNumberOfCores As String = Nothing
+        Dim processorThreadCount As String = Nothing
+        Dim processorPartNumber As String = Nothing
+        Dim processorSerialNumber As String = Nothing
+        Dim processorSocketDesignation As String = Nothing
+        Dim processorArchitecture As String = Nothing
+
+        key = "Win32_Processor"
+        query = New ObjectQuery($"SELECT * FROM {key}")
+        informations = New ManagementObjectSearcher(scope, query)
+
+        For Each information As ManagementObject In informations.Get()
+            processorCaption = information("Caption")
+            processorManufacturer = information("Manufacturer")
+            processorMaxClockSpeed = information("MaxClockSpeed")
+            processorName = information("Name")
+            processorNumberOfCores = information("NumberOfCores")
+            processorThreadCount = information("ThreadCount")
+            processorPartNumber = information("PartNumber")
+            processorSerialNumber = information("SerialNumber")
+            processorSocketDesignation = information("SocketDesignation")
+            processorArchitecture = GetProcessorArchitecture(information("Architecture"))
+        Next
+
+        'Physical Memory
+
+        Dim physicalMemoryCapacity As New List(Of String)
+        Dim physicalMemoryPartNumber As New List(Of String)
+        Dim physicalMemoryManufacturer As New List(Of String)
+        Dim physicalMemoryConfiguredClockSpeed As New List(Of String)
+        Dim physicalMemorySerialNumber As New List(Of String)
+
+        key = "Win32_PhysicalMemory"
+        query = New ObjectQuery($"SELECT * FROM {key}")
+        informations = New ManagementObjectSearcher(scope, query)
+
+        For Each information As ManagementObject In informations.Get()
+            Dim capacity As String = information("Capacity")
+            capacity = $"{CInt(capacity / 1024 / 1024 / 1024)}"
+            physicalMemoryCapacity.Add(capacity)
+            physicalMemoryPartNumber.Add(information("PartNumber"))
+            physicalMemoryManufacturer.Add(information("Manufacturer"))
+            physicalMemoryConfiguredClockSpeed.Add(information("ConfiguredClockSpeed"))
+            physicalMemorySerialNumber.Add(information("SerialNumber"))
+        Next
+
         ' Computer System Information
         Dim computerName As String = Nothing
         Dim computerUsername As String = Nothing
@@ -212,17 +264,43 @@ Public Class WindowsInstrumentManagementForm
         InformationForm.TreeView1.Nodes.Add(rootNode)
         rootNode.Expand()
 
+        Dim processorNode As TreeNode = CreateTreeNode("Processor")
+        Dim physicalMemoryNode As TreeNode = CreateTreeNode("Physical Memory")
         Dim computerSystemInformationNode As TreeNode = CreateTreeNode("System Information")
         Dim computerSystemProductNode As TreeNode = CreateTreeNode("System Product Information")
         Dim operatingSystemNode As TreeNode = CreateTreeNode("Operating System Information")
         Dim networkAdapterNode As TreeNode = CreateTreeNode("Network Adapter Information")
         Dim productInformationNode As TreeNode = CreateTreeNode("Product Information")
 
+        AddChildNode(rootNode, processorNode)
+        AddChildNode(rootNode, physicalMemoryNode)
         AddChildNode(rootNode, computerSystemInformationNode)
         AddChildNode(rootNode, computerSystemProductNode)
         AddChildNode(rootNode, operatingSystemNode)
         AddChildNode(rootNode, networkAdapterNode)
         AddChildNode(rootNode, productInformationNode)
+
+        AddChildNode(processorNode, CreateTreeNodeWithValue("Caption", processorCaption))
+        AddChildNode(processorNode, CreateTreeNodeWithValue("Manufacturer", processorManufacturer))
+        AddChildNode(processorNode, CreateTreeNodeWithValue("Clock Speed", processorMaxClockSpeed))
+        AddChildNode(processorNode, CreateTreeNodeWithValue("Name", processorName))
+        AddChildNode(processorNode, CreateTreeNodeWithValue("Number of Core", processorNumberOfCores))
+        AddChildNode(processorNode, CreateTreeNodeWithValue("Number of Thread", processorThreadCount))
+        AddChildNode(processorNode, CreateTreeNodeWithValue("Part Number", processorPartNumber))
+        AddChildNode(processorNode, CreateTreeNodeWithValue("Serial Number", processorSerialNumber))
+        AddChildNode(processorNode, CreateTreeNodeWithValue("Socket Designation", processorSocketDesignation))
+        AddChildNode(processorNode, CreateTreeNodeWithValue("Architecture", processorArchitecture))
+
+        For i As Integer = 0 To physicalMemoryPartNumber.Count - 1 Step 1
+            Dim partNumberNode As TreeNode = CreateTreeNode(physicalMemoryPartNumber(i))
+            AddChildNode(physicalMemoryNode, partNumberNode)
+            AddChildNode(partNumberNode, CreateTreeNodeWithValue("Capacity", $"{physicalMemoryCapacity(i)}GB"))
+            AddChildNode(partNumberNode, CreateTreeNodeWithValue("Part Number", physicalMemoryPartNumber(i)))
+            AddChildNode(partNumberNode, CreateTreeNodeWithValue("Manufacturer", physicalMemoryManufacturer(i)))
+            AddChildNode(partNumberNode, CreateTreeNodeWithValue("Configured Speed", physicalMemoryConfiguredClockSpeed(i)))
+            AddChildNode(partNumberNode, CreateTreeNodeWithValue("Serial Number", physicalMemorySerialNumber(i)))
+        Next
+
 
         AddChildNode(computerSystemInformationNode, CreateTreeNodeWithValue("Name", computerName))
         AddChildNode(computerSystemInformationNode, CreateTreeNodeWithValue("Username", computerUsername))
@@ -322,4 +400,28 @@ Public Class WindowsInstrumentManagementForm
     Private Sub AddChildNode(parentNode As TreeNode, childNode As TreeNode)
         parentNode.Nodes.Add(childNode)
     End Sub
+
+
+    Private Function GetProcessorArchitecture(codeNumber As Integer) As String
+        Select Case codeNumber
+            Case 0
+                Return "x86"
+            Case 1
+                Return "MIPS"
+            Case 2
+                Return "Alpha"
+            Case 3
+                Return "PowerPC"
+            Case 5
+                Return "ARM"
+            Case 6
+                Return "ia64"
+            Case 9
+                Return "x64"
+            Case 12
+                Return "ARM64"
+            Case Else
+                Return "Invalid Code Number"
+        End Select
+    End Function
 End Class
